@@ -32,6 +32,13 @@ void loop() {
   // is off, and we start with the first LED again.
   
   frame = display_getFrame();
+
+  // The frame variable now contains the status of all 20 LEDs in one 32-bit variable
+  // - bit 0 is LED1 on the PCB, bit 1 is LED2, and so on.
+  // You can also use display_setPixel(ledNumber, state) to set a given LED to 
+  // on (state=1) or off (state=0)
+  // display_getPixel(ledNumber) will return 0 if that LED is off, and 1 if it is on.
+  // Note that the ledNumber parameters for those functions are 0-based, so 0 is LED1, 1 is LED2, etc.
   if(frame == 0) {
     frame = 1;
   } else {
