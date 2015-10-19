@@ -4,6 +4,7 @@
 
 #include <TimerOne.h>
 #include <IRremote.h>
+#include <EEPROM.h>
 #include "display.h"
 #include "infrared.h"
 #include "persistent_data.h"
@@ -39,7 +40,7 @@ void setup() {
 }
 
 void loop() {
-  static uint16_t i = 0;
+  static uint16_t i = 0, j = 0;
   uint32_t frame;
   uint32_t rawPacket;
   decodedPacket packet;
@@ -84,21 +85,42 @@ void loop() {
         case IR_TYPE_LIST_MAKERS:
           // find number of makers encountered
           // send response for each one
+          j = persist_getMaxMakers();
+          for(i=0; i<j; i++) {
+            if(persist_haveEncounteredMaker(i)) {
+              infrared_sendListMakersResponse(i);
+              delay(20);
+            }
+          }
           break;
         case IR_TYPE_LIST_EXHIBITS:
           // find number of exhibits encountered
           // send response for each one
+          j = persist_getMaxExhibits();
+          for(i=0; i<j; i++) {
+            if(persist_haveEncounteredExhibit(i)) {
+              infrared_sendListExhibitsResponse(i);
+              delay(20);
+            }
+          }
           break;
         case IR_TYPE_PLAY_ANIMATION:
           // start playing indicated animation
+          // packet.param1 contains the animation number
+          // packet.param2 contains the animation duration, which is in 10ms units
+          // so multiply it by 10 to get duration in ms
           break;
         case IR_TYPE_BEACON:
           // check if MakerID or ExhibitID
           // mark that maker / exhibit as encountered
-          if(packet.param1 == 1) {
-            persist_encounterExhibit(packet.param2);
-          } else {
-            persist_encounterMaker(packet.param2);
+
+          // MakerID / ExhibitID 0 doesn't count - that's an unprogrammed badge
+          if(packet.param2 != 0) {
+            if(packet.param1 == 1) {
+              persist_encounterExhibit(packet.param2);
+            } else {
+              persist_encounterMaker(packet.param2);
+            }
           }
           break;
         default:

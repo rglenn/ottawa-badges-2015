@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include "Arduino.h"
 #include "persistent_data.h"
 
@@ -16,6 +17,15 @@ static uint16_t numExhibits;
 static uint16_t myMakerID;
 static uint16_t myExhibitID;
 
+#define MAKERS_ENCOUNTERED_ADDRESS 0
+#define EXHIBITS_ENCOUNTERED_ADDRESS 128
+#define NUM_MAKERS_ADDRESS 256
+#define NUM_EXHIBITS_ADDRESS 258
+#define MAKER_ID_ADDRESS 260
+#define EXHIBIT_ID_ADDRESS 262
+#define CHECK_VALUE_ADDRESS 264
+#define CHECK_VALUE 0x4242
+
 void persist_init() {
   // MAJOR TODO: Read everything from EEPROM if a check value is found in EEPROM, otherwise default to 0
   uint8_t i;
@@ -31,6 +41,28 @@ void persist_init() {
   numExhibits = 0;
   myMakerID = 0;
   myExhibitID = 0;
+
+  uint16_t checkValue;
+  EEPROM.get(CHECK_VALUE_ADDRESS, checkValue);
+  if(checkValue != CHECK_VALUE) {
+    // initialize eeprom
+    checkValue = CHECK_VALUE;
+    EEPROM.put(CHECK_VALUE_ADDRESS, checkValue);
+    EEPROM.put(EXHIBIT_ID_ADDRESS, myExhibitID);
+    EEPROM.put(MAKER_ID_ADDRESS, myMakerID);
+    EEPROM.put(NUM_EXHIBITS_ADDRESS, numExhibits);
+    EEPROM.put(NUM_MAKERS_ADDRESS, numMakers);
+    EEPROM.put(EXHIBITS_ENCOUNTERED_ADDRESS, exhibitsEncountered);
+    EEPROM.put(MAKERS_ENCOUNTERED_ADDRESS, makersEncountered);
+  } else {
+    // read values from eeprom
+    EEPROM.get(EXHIBIT_ID_ADDRESS, myExhibitID);
+    EEPROM.get(MAKER_ID_ADDRESS, myMakerID);
+    EEPROM.get(NUM_EXHIBITS_ADDRESS, numExhibits);
+    EEPROM.get(NUM_MAKERS_ADDRESS, numMakers);
+    EEPROM.get(EXHIBITS_ENCOUNTERED_ADDRESS, exhibitsEncountered);
+    EEPROM.get(MAKERS_ENCOUNTERED_ADDRESS, makersEncountered);
+  }
 }
 
 uint16_t persist_getMaxMakers() {
@@ -46,8 +78,13 @@ uint16_t persist_getMakerID() {
 }
 
 void persist_setMakerID(uint16_t newID) {
-  myMakerID = (newID & 0x07FF);
-  // MAJOR TODO: Write to EEPROM on change
+  newID = (newID & 0x07FF);
+  
+  if(myMakerID != newID) {
+    myMakerID = newID;
+    // Write to EEPROM on change
+    EEPROM.put(MAKER_ID_ADDRESS, myMakerID);
+  }
 }
 
 uint16_t persist_getExhibitID() {
@@ -55,8 +92,13 @@ uint16_t persist_getExhibitID() {
 }
 
 void persist_setExhibitID(uint16_t newID) {
-  myExhibitID = (newID & 0x07FF);
-  // MAJOR TODO: Write to EEPROM on change
+  newID = (newID & 0x07FF);
+
+  if(myExhibitID != newID) {
+    myExhibitID = newID;
+    // Write to EEPROM on change
+    EEPROM.put(EXHIBIT_ID_ADDRESS, myExhibitID);
+  }
 }
 
 uint16_t persist_getNumMakers() {
@@ -64,8 +106,13 @@ uint16_t persist_getNumMakers() {
 }
 
 void persist_setNumMakers(uint16_t newNum) {
-  numMakers = (newNum & 0x07FF);
-  // MAJOR TODO: Write to EEPROM on change
+  newNum = (newNum & 0x07FF);
+
+  if(numMakers != newNum) {
+    numMakers = newNum;
+    // Write to EEPROM on change
+    EEPROM.put(NUM_MAKERS_ADDRESS, numMakers);
+  }
 }
 
 uint16_t persist_getNumExhibits() {
@@ -73,8 +120,13 @@ uint16_t persist_getNumExhibits() {
 }
 
 void persist_setNumExhibits(uint16_t newNum) {
-  numExhibits = (newNum & 0x07FF);
-  // MAJOR TODO: Write to EEPROM on change
+  newNum = (newNum & 0x07FF);
+  
+  if(numExhibits != newNum) {
+    numExhibits = newNum;
+    // Write to EEPROM on change
+    EEPROM.put(NUM_EXHIBITS_ADDRESS, numExhibits);
+  }
 }
 
 void persist_encounterMaker(uint16_t makerID) {
@@ -86,8 +138,11 @@ void persist_encounterMaker(uint16_t makerID) {
 
   uint8_t scratch = makersEncountered[arraySlot];
   scratch |= (1 << bitNum);
-  makersEncountered[arraySlot] = scratch;
-  // MAJOR TODO: Write to EEPROM on change
+  if(makersEncountered[arraySlot] != scratch) {
+    makersEncountered[arraySlot] = scratch;
+    // Write to EEPROM on change
+    EEPROM.put(MAKERS_ENCOUNTERED_ADDRESS, makersEncountered);
+  }
 }
 
 uint8_t persist_haveEncounteredMaker(uint16_t makerID) {
@@ -113,8 +168,11 @@ void persist_encounterExhibit(uint16_t exhibitID) {
 
   uint8_t scratch = exhibitsEncountered[arraySlot];
   scratch |= (1 << bitNum);
-  exhibitsEncountered[arraySlot] = scratch;
-  // MAJOR TODO: Write to EEPROM on change
+  if(exhibitsEncountered[arraySlot] != scratch) {
+    exhibitsEncountered[arraySlot] = scratch;
+    // Write to EEPROM on change
+    EEPROM.put(EXHIBITS_ENCOUNTERED_ADDRESS, exhibitsEncountered);
+  }
 }
 
 uint8_t persist_haveEncounteredExhibit(uint16_t exhibitID) {
