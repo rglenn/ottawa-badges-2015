@@ -13,9 +13,6 @@
 #define VER_MAJOR 0x01
 #define VER_MINOR 0x00
 
-uint16_t MakerID;
-uint16_t ExhibitID;
-
 void setup() {
   // Set up IO pins for display
   display_init();
