@@ -13,6 +13,10 @@
 #define VER_MAJOR 0x01
 #define VER_MINOR 0x00
 
+#define BEACON_INTERVAL_MS ( 60UL * 1000UL )
+
+uint32_t beacon_prevMillis = 0;
+
 void setup() {
   // Set up IO pins for display
   display_init();
@@ -126,6 +130,21 @@ void loop() {
     }
   }
 
+  uint32_t currentMillis = millis();
+
+  // Send out beacons periodically
+  if(currentMillis - beacon_prevMillis > BEACON_INTERVAL_MS) {
+    beacon_prevMillis = currentMillis;
+    if(persist_getMakerID() != 0) {
+      infrared_sendBeacon(persist_getMakerID(), ID_TYPE_MAKER);
+      delay(20);
+    }
+    
+    if(persist_getExhibitID() != 0) {
+      infrared_sendBeacon(persist_getExhibitID(), ID_TYPE_EXHIBIT);
+      delay(20);
+    }
+  }
 
   // Super basic LED chase. We get what's on the display currently.
   // If nothing is lit, we light the first LED. Otherwise, we just shift it left.
