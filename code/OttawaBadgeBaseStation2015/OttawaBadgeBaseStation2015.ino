@@ -91,8 +91,8 @@ void loop() {
         break;
       case STATE_WAIT_PARAM_3:
         if ((ch <= '9') && (ch >= '0')) {
-          param1 *= 10;
-          param1 += (ch - '0');
+          param3 *= 10;
+          param3 += (ch - '0');
           currentState = STATE_WAIT_PARAM_3;
         } else if((ch == '\r') || (ch == '\n')) {
           sendIRPacket(packetType, param1, param2, param3);
@@ -148,6 +148,9 @@ irType getTypeFromChar(char ch) {
     case 'B':
       return IR_TYPE_BEACON;
       break;
+    case 'Z':
+     return IR_TYPE_RESET;
+     break;
     default:
       return IR_TYPE_INVALID;
       break;
@@ -155,8 +158,10 @@ irType getTypeFromChar(char ch) {
 }
 
 void sendIRPacket(irType packetType, uint16_t param1, uint16_t param2, uint16_t param3) {
+  Serial.println("Sending packet");
   switch(packetType) {
     case IR_TYPE_IDENTIFY:
+      Serial.println("Sending Identify packet");
       infrared_sendIdentifyCommand();
       break;
     case IR_TYPE_IDENTIFY_RESPONSE:
@@ -191,6 +196,9 @@ void sendIRPacket(irType packetType, uint16_t param1, uint16_t param2, uint16_t 
       break;
     case IR_TYPE_BEACON:
       infrared_sendBeacon(param1, (idType) param2);
+      break;
+    case IR_TYPE_RESET:
+      infrared_sendResetCommand();
       break;
   }
 }

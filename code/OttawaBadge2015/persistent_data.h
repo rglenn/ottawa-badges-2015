@@ -25,3 +25,4 @@ uint8_t persist_haveEncounteredExhibit(uint16_t exhibitID);
 uint16_t persist_getNumMakersEncountered();
 uint16_t persist_getNumExhibitsEncountered();
 idType persist_getIDtype(uint16_t id);
+void persist_erase();

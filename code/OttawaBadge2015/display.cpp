@@ -45,11 +45,10 @@ void display_update() {
     currentLed = 0;
   }
 
-  pinMode(4, INPUT);
-  pinMode(5, INPUT);
-  pinMode(6, INPUT);
-  pinMode(7, INPUT);
-  pinMode(8, INPUT);
+  DDRD &= 0x0F; // Digital 4-7 as input
+  PORTD &= 0x0F;
+  DDRB &= 0xFE; // Digital 8  as input
+  PORTB &= 0xFE;
     
   // this switch statement sets the anode
   if(framebuffer & (uint32_t)(1UL << currentLed)) {
@@ -58,36 +57,36 @@ void display_update() {
       case 1:
       case 2:
       case 3:
-        pinMode(4, OUTPUT);
-        digitalWrite(4, HIGH);
+        DDRD |= 0x10;
+        PORTD |= 0x10;
         break;
       case 4:
       case 5:
       case 6:
       case 7:
-        pinMode(5, OUTPUT);
-        digitalWrite(5, HIGH);
+        DDRD |= 0x20;
+        PORTD |= 0x20;
         break;
       case 8:
       case 9:
       case 10:
       case 11:
-        pinMode(6, OUTPUT);
-        digitalWrite(6, HIGH);
+        DDRD |= 0x40;
+        PORTD |= 0x40;
         break;
       case 12:
       case 13:
       case 14:
       case 15:
-        pinMode(7, OUTPUT);
-        digitalWrite(7, HIGH);
+        DDRD |= 0x80;
+        PORTD |= 0x80;
         break;
       case 16:
       case 17:
       case 18:
       case 19:
-        pinMode(8, OUTPUT);
-        digitalWrite(8, HIGH);
+        DDRB |= 0x01;
+        PORTB |= 0x01;
         break;
     }
   }
@@ -97,36 +96,36 @@ void display_update() {
     case 8:
     case 12:
     case 16:
-      pinMode(4, OUTPUT);
-      digitalWrite(4, LOW);
+        DDRD |= 0x10;
+        PORTD &= ~0x10;
       break;
     case 0:
     case 9:
     case 13:
     case 17:
-      pinMode(5, OUTPUT);
-      digitalWrite(5, LOW);
+        DDRD |= 0x20;
+        PORTD &= ~0x20;
       break;
     case 1:
     case 5:
     case 14:
     case 18:
-      pinMode(6, OUTPUT);
-      digitalWrite(6, LOW);
+        DDRD |= 0x40;
+        PORTD &= ~0x40;
       break;
     case 2:
     case 6:
     case 10:
     case 19:
-      pinMode(7, OUTPUT);
-      digitalWrite(7, LOW);
+        DDRD |= 0x80;
+        PORTD &= ~0x80;
       break;
     case 3:
     case 7:
     case 11:
     case 15:
-      pinMode(8, OUTPUT);
-      digitalWrite(8, LOW);
+        DDRB |= 0x01;
+        PORTB &= ~0x01;
       break;
   }
 

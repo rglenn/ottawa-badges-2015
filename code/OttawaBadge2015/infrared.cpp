@@ -11,7 +11,10 @@ void infrared_enable() {
 }
 
 void infrared_sendRaw(uint32_t packet) {
+  //DEBUG_PRINTLN(packet, BIN);
   irsend.sendSony(packet, 20);
+  delay(15);
+  irrecv.enableIRIn();
 }
 
 irReturn infrared_checkPacket(uint32_t *packet) {
@@ -23,22 +26,27 @@ irReturn infrared_checkPacket(uint32_t *packet) {
   
   // first check that the packet was a Sony format
   if(results.decode_type != SONY) {
+    irrecv.resume();
     return IR_BAD_FORMAT;
   }
 
   // next check number of bits
   if(results.bits != 20) {
+    irrecv.resume();
     return IR_BAD_LENGTH;
   }
 
   // next check CRC
   *packet = results.value;
   if(!crc4_checkChecksum(*packet)) {
+    irrecv.resume();
     return IR_BAD_CRC;
   }
 
   // now check command type
 
+
+  irrecv.resume();
 
   // ok if it passes
   return IR_OK;  
@@ -48,7 +56,7 @@ uint32_t infrared_buildPacket(irType packetType, uint16_t irPayload) {
   uint32_t scratch = 0;
   uint8_t crcVal;
 
-  scratch = (packetType & 0x0F) << 16;
+  scratch = ((uint32_t)(packetType & 0x0F)) << 16UL;
   scratch |= (irPayload & 0x0FFF) << 4;
   crcVal = crc4_getChecksum(scratch);
   scratch |= (crcVal & 0x0F);
@@ -169,7 +177,7 @@ void infrared_sendPlayAnimationCommand(uint8_t animationNum, uint8_t timeoutVal)
   payload |= (animationNum & 0x0F) << 8;
   payload |= timeoutVal;
 
-  packet = infrared_buildPacket(IR_TYPE_LIST_EXHIBITS_RESPONSE, payload);
+  packet = infrared_buildPacket(IR_TYPE_PLAY_ANIMATION, payload);
   infrared_sendRaw(packet);
 }
 
@@ -186,6 +194,14 @@ void infrared_sendBeacon(uint16_t idVal, idType type) {
   infrared_sendRaw(packet);
 }
 
+void infrared_sendResetCommand() {
+  uint16_t payload = 0;
+  uint32_t packet = 0;
+
+  packet = infrared_buildPacket(IR_TYPE_RESET, payload);
+  infrared_sendRaw(packet);
+}
+
 decodedPacket infrared_decodePacket(uint32_t packet) {
   decodedPacket scratch;
 
@@ -195,6 +211,7 @@ decodedPacket infrared_decodePacket(uint32_t packet) {
     case IR_TYPE_IDENTIFY:
     case IR_TYPE_LIST_MAKERS:
     case IR_TYPE_LIST_EXHIBITS:
+    case IR_TYPE_RESET:
     default:
       scratch.param1 = 0;
       scratch.param2 = 0;
@@ -221,7 +238,7 @@ decodedPacket infrared_decodePacket(uint32_t packet) {
       scratch.param3 = 0;
       break;
     case IR_TYPE_PLAY_ANIMATION:
-      scratch.param1 = (packet & 0x0000F000UL) >> 8; // Animation number
+      scratch.param1 = (packet & 0x0000F000UL) >> 12; // Animation number
       scratch.param2 = (packet & 0x00000FF0UL) >> 4; // Animation duration
       scratch.param3 = 0;
       break;

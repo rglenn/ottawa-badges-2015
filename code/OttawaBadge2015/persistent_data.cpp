@@ -226,3 +226,29 @@ idType persist_getIDtype(uint16_t id) {
   }
 }
 
+void persist_erase() {
+  // initialize eeprom
+  uint16_t checkValue = CHECK_VALUE;
+  uint8_t i;
+  for(i=0; i<numMakersArray; i++) {
+    makersEncountered[i] = 0;
+  }
+
+  for(i=0; i<numExhibitsArray; i++) {
+    exhibitsEncountered[i] = 0;
+  }
+
+  numMakers = 0;
+  numExhibits = 0;
+  myMakerID = 0;
+  myExhibitID = 0;
+  
+  EEPROM.put(CHECK_VALUE_ADDRESS, checkValue);
+  EEPROM.put(EXHIBIT_ID_ADDRESS, myExhibitID);
+  EEPROM.put(MAKER_ID_ADDRESS, myMakerID);
+  EEPROM.put(NUM_EXHIBITS_ADDRESS, numExhibits);
+  EEPROM.put(NUM_MAKERS_ADDRESS, numMakers);
+  EEPROM.put(EXHIBITS_ENCOUNTERED_ADDRESS, exhibitsEncountered);
+  EEPROM.put(MAKERS_ENCOUNTERED_ADDRESS, makersEncountered);
+}
+

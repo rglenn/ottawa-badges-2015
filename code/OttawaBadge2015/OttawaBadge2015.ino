@@ -1,8 +1,6 @@
 // Requires the following libraries:
-// https://github.com/PaulStoffregen/TimerOne
-// https://github.com/z3t0/Arduino-IRremote (not implemented yet)
+// https://github.com/z3t0/Arduino-IRremote
 
-#include <TimerOne.h>
 #include <IRremote.h>
 #include <EEPROM.h>
 #include "display.h"
@@ -13,9 +11,23 @@
 #define VER_MAJOR 0x01
 #define VER_MINOR 0x00
 
-#define BEACON_INTERVAL_MS ( 60UL * 1000UL )
+#define BEACON_INTERVAL_MS ( 15UL * 1000UL )
+#define DISPLAY_INTERVAL_US 500
+#define ANIMATION_INTERVAL_MS 100
 
 uint32_t beacon_prevMillis = 0;
+uint32_t display_prevMicros = 0;
+uint32_t animation_prevMillis = 0;
+
+#undef DEBUG
+
+#ifdef DEBUG
+ #define DEBUG_PRINT(x...)  Serial.print (x)
+ #define DEBUG_PRINTLN(x...)  Serial.println (x)
+#else
+ #define DEBUG_PRINT(x...)
+ #define DEBUG_PRINTLN(x...)
+#endif
 
 void setup() {
   // Set up IO pins for display
@@ -35,9 +47,10 @@ void setup() {
   // 500 microseconds times 20 LEDs = 10 milliseconds to draw the entire display
   // This gives us a 100 Hz frame rate on the display, which is fast enough for humans
   // not to notice.
-  Timer1.initialize(500);
-  Timer1.attachInterrupt(display_update);
-  Timer1.start();
+
+#ifdef DEBUG
+  Serial.begin(9600);
+#endif
 }
 
 void loop() {
@@ -46,27 +59,34 @@ void loop() {
   uint32_t rawPacket;
   decodedPacket packet;
 
-  if(infrared_checkPacket(&rawPacket) == IR_OK) {
+  irReturn retVal = infrared_checkPacket(&rawPacket);
+
+  if(retVal == IR_OK) {
     // we have a valid packet!
     packet = infrared_decodePacket(rawPacket);
-
+    
     switch(packet.type) {
         case IR_TYPE_IDENTIFY:
+          DEBUG_PRINTLN("Received Identify");
           infrared_sendIdentifyResponse(BOARD_TYPE, VER_MAJOR, VER_MINOR);
           delay(20);
           infrared_sendSetIDResponse(persist_getMakerID(), ID_TYPE_MAKER);
           delay(20);
           infrared_sendSetIDResponse(persist_getExhibitID(), ID_TYPE_EXHIBIT);
-          delay(20);
+          delay(10);
           break;
         case IR_TYPE_SET_ID:
           // check if MakerID or ExhibitID
           // update MakerID or ExhibitID depending
           // send response
           if(packet.param1 == 1) {
+            DEBUG_PRINT("Setting ExhibitID to ");
+            DEBUG_PRINTLN(packet.param2);
             persist_setExhibitID(packet.param2);
             infrared_sendSetIDResponse(persist_getExhibitID(), ID_TYPE_EXHIBIT);
           } else {
+            DEBUG_PRINT("Setting MakerID to ");
+            DEBUG_PRINTLN(packet.param2);
             persist_setMakerID(packet.param2);
             infrared_sendSetIDResponse(persist_getMakerID(), ID_TYPE_MAKER);
           }
@@ -76,9 +96,13 @@ void loop() {
           // update MakerCount or ExhibitCount depending
           // send response
           if(packet.param1 == 1) {
+            DEBUG_PRINT("Setting Number of Exhibits to ");
+            DEBUG_PRINTLN(packet.param2);
             persist_setNumExhibits(packet.param2);
             infrared_sendSetNumMakersResponse(persist_getNumExhibits(), ID_TYPE_EXHIBIT);
           } else {
+            DEBUG_PRINT("Setting Number of Makers to ");
+            DEBUG_PRINTLN(packet.param2);
             persist_setNumMakers(packet.param2);
             infrared_sendSetNumMakersResponse(persist_getNumMakers(), ID_TYPE_MAKER);
           }
@@ -86,9 +110,12 @@ void loop() {
         case IR_TYPE_LIST_MAKERS:
           // find number of makers encountered
           // send response for each one
+          DEBUG_PRINTLN("Received List Makers");
           j = persist_getMaxMakers();
-          for(i=0; i<j; i++) {
+          for(i=1; i<(j+1); i++) {
             if(persist_haveEncounteredMaker(i)) {
+              DEBUG_PRINT("Sending maker encountered for maker #");
+              DEBUG_PRINTLN(i);
               infrared_sendListMakersResponse(i);
               delay(20);
             }
@@ -97,9 +124,12 @@ void loop() {
         case IR_TYPE_LIST_EXHIBITS:
           // find number of exhibits encountered
           // send response for each one
+          DEBUG_PRINTLN("Received List Exhibits");
           j = persist_getMaxExhibits();
-          for(i=0; i<j; i++) {
+          for(i=1; i<(j+1); i++) {
             if(persist_haveEncounteredExhibit(i)) {
+              DEBUG_PRINT("Sending exhibit encountered for maker #");
+              DEBUG_PRINTLN(i);
               infrared_sendListExhibitsResponse(i);
               delay(20);
             }
@@ -110,6 +140,10 @@ void loop() {
           // packet.param1 contains the animation number
           // packet.param2 contains the animation duration, which is in 10ms units
           // so multiply it by 10 to get duration in ms
+          DEBUG_PRINT("Received Play Animation for animation #");
+          DEBUG_PRINT(packet.param1);
+          DEBUG_PRINT(" with duration ");
+          DEBUG_PRINTLN(packet.param2);
           break;
         case IR_TYPE_BEACON:
           // check if MakerID or ExhibitID
@@ -118,22 +152,38 @@ void loop() {
           // MakerID / ExhibitID 0 doesn't count - that's an unprogrammed badge
           if(packet.param2 != 0) {
             if(packet.param1 == 1) {
+              DEBUG_PRINT("Encountering exhibit ");
+              DEBUG_PRINTLN(packet.param2);
               persist_encounterExhibit(packet.param2);
             } else {
+              DEBUG_PRINT("Encountering maker ");
+              DEBUG_PRINTLN(packet.param2);
               persist_encounterMaker(packet.param2);
             }
           }
+          break;
+        case IR_TYPE_RESET:
+          DEBUG_PRINTLN("Erase received!");
+          persist_erase();
           break;
         default:
           // unknown packet - just drop it
           break;
     }
+  } else if(retVal == IR_BAD_FORMAT) {
+    DEBUG_PRINTLN(F("PACKET: INVALID, BAD FORMAT"));
+  } else if(retVal == IR_BAD_LENGTH) {
+    DEBUG_PRINTLN(F("PACKET: INVALID, BAD LENGTH"));
+  } else if(retVal == IR_BAD_CRC) {
+    DEBUG_PRINTLN(F("PACKET: INVALID, BAD CRC"));
   }
 
   uint32_t currentMillis = millis();
+  uint32_t currentMicros = micros();
 
   // Send out beacons periodically
   if(currentMillis - beacon_prevMillis > BEACON_INTERVAL_MS) {
+    DEBUG_PRINTLN("Beacon time!");
     beacon_prevMillis = currentMillis;
     if(persist_getMakerID() != 0) {
       infrared_sendBeacon(persist_getMakerID(), ID_TYPE_MAKER);
@@ -146,26 +196,90 @@ void loop() {
     }
   }
 
-  // Super basic LED chase. We get what's on the display currently.
-  // If nothing is lit, we light the first LED. Otherwise, we just shift it left.
-  // Left shifts continue, until we shift off the end - at which point everything
-  // is off, and we start with the first LED again.
-  
-  frame = display_getFrame();
-
-  // The frame variable now contains the status of all 20 LEDs in one 32-bit variable
-  // - bit 0 is LED1 on the PCB, bit 1 is LED2, and so on.
-  // You can also use display_setPixel(ledNumber, state) to set a given LED to 
-  // on (state=1) or off (state=0)
-  // display_getPixel(ledNumber) will return 0 if that LED is off, and 1 if it is on.
-  // Note that the ledNumber parameters for those functions are 0-based, so 0 is LED1, 1 is LED2, etc.
-  if(frame == 0) {
-    frame = 1;
-  } else {
-    frame <<= 1;
+  // Update display periodically
+  if(currentMicros - display_prevMicros > DISPLAY_INTERVAL_US) {
+    display_prevMicros = currentMicros;
+    display_update();
   }
-  display_setFrame(frame);
-  i = 0;
+ 
+  if(currentMillis - animation_prevMillis > ANIMATION_INTERVAL_MS) {
+    animation_prevMillis = currentMillis;
 
-  delay(250);
+    frame = 0;
+
+    uint8_t numLEDs;
+    numLEDs = map(persist_getNumMakersEncountered(), 0, persist_getNumMakers(), 0, 10);
+    switch(numLEDs) {
+      case 10:
+        frame |= 0b01010101010101010101UL;
+        break;
+      case 9:
+        frame |= 0b010101010101010101UL;
+        break;
+      case 8:
+        frame |= 0b0101010101010101UL;
+        break;
+      case 7:
+        frame |= 0b01010101010101UL;
+        break;
+      case 6:
+        frame |= 0b010101010101UL;
+        break;
+      case 5:
+        frame |= 0b0101010101UL;
+        break;
+      case 4:
+        frame |= 0b01010101UL;
+        break;
+      case 3:
+        frame |= 0b010101UL;
+        break;
+      case 2:
+        frame |= 0b0101UL;
+        break;
+      case 1:
+        frame |= 0b01UL;
+        break;
+      default:
+        break;
+    }
+
+    numLEDs = map(persist_getNumExhibitsEncountered(), 0, persist_getNumExhibits(), 0, 10);
+    switch(numLEDs) {
+      case 10:
+        frame |= 0b010101010101010101010UL;
+        break;
+      case 9:
+        frame |= 0b0101010101010101010UL;
+        break;
+      case 8:
+        frame |= 0b01010101010101010UL;
+        break;
+      case 7:
+        frame |= 0b010101010101010UL;
+        break;
+      case 6:
+        frame |= 0b0101010101010UL;
+        break;
+      case 5:
+        frame |= 0b01010101010UL;
+        break;
+      case 4:
+        frame |= 0b010101010UL;
+        break;
+      case 3:
+        frame |= 0b0101010UL;
+        break;
+      case 2:
+        frame |= 0b01010UL;
+        break;
+      case 1:
+        frame |= 0b010UL;
+        break;
+      default:
+        break;
+    }
+
+    display_setFrame(frame);
+  }
 }
