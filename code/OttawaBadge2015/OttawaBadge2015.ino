@@ -61,6 +61,10 @@ void loop() {
 
   irReturn retVal = infrared_checkPacket(&rawPacket);
 
+  static uint8_t animationNumber = 0;
+  static uint8_t animationCountdown = 0;
+  static uint8_t animationFrameNumber = 0;
+  
   if(retVal == IR_OK) {
     // we have a valid packet!
     packet = infrared_decodePacket(rawPacket);
@@ -144,6 +148,10 @@ void loop() {
           DEBUG_PRINT(packet.param1);
           DEBUG_PRINT(" with duration ");
           DEBUG_PRINTLN(packet.param2);
+          animationNumber = (uint8_t) packet.param1;
+          animationCountdown = (uint8_t) packet.param2;
+          if(animationCountdown == 0) animationNumber = 0;
+          animationFrameNumber = 0;
           break;
         case IR_TYPE_BEACON:
           // check if MakerID or ExhibitID
@@ -201,85 +209,104 @@ void loop() {
     display_prevMicros = currentMicros;
     display_update();
   }
- 
+
   if(currentMillis - animation_prevMillis > ANIMATION_INTERVAL_MS) {
     animation_prevMillis = currentMillis;
 
-    frame = 0;
+    if(animationNumber == 0) {
+      display_setFrame(doBargraph());
+    } else {
+      // run an animation
+      display_setFrame(doAnimation(animationNumber, &animationFrameNumber));
 
-    uint8_t numLEDs;
-    numLEDs = map(persist_getNumMakersEncountered(), 0, persist_getNumMakers(), 0, 10);
-    switch(numLEDs) {
-      case 10:
-        frame |= 0b01010101010101010101UL;
-        break;
-      case 9:
-        frame |= 0b010101010101010101UL;
-        break;
-      case 8:
-        frame |= 0b0101010101010101UL;
-        break;
-      case 7:
-        frame |= 0b01010101010101UL;
-        break;
-      case 6:
-        frame |= 0b010101010101UL;
-        break;
-      case 5:
-        frame |= 0b0101010101UL;
-        break;
-      case 4:
-        frame |= 0b01010101UL;
-        break;
-      case 3:
-        frame |= 0b010101UL;
-        break;
-      case 2:
-        frame |= 0b0101UL;
-        break;
-      case 1:
-        frame |= 0b01UL;
-        break;
-      default:
-        break;
+      // timeout the animation
+      animationCountdown--;
+      if(animationCountdown == 0) {
+        animationNumber = 0;
+      }
     }
-
-    numLEDs = map(persist_getNumExhibitsEncountered(), 0, persist_getNumExhibits(), 0, 10);
-    switch(numLEDs) {
-      case 10:
-        frame |= 0b010101010101010101010UL;
-        break;
-      case 9:
-        frame |= 0b0101010101010101010UL;
-        break;
-      case 8:
-        frame |= 0b01010101010101010UL;
-        break;
-      case 7:
-        frame |= 0b010101010101010UL;
-        break;
-      case 6:
-        frame |= 0b0101010101010UL;
-        break;
-      case 5:
-        frame |= 0b01010101010UL;
-        break;
-      case 4:
-        frame |= 0b010101010UL;
-        break;
-      case 3:
-        frame |= 0b0101010UL;
-        break;
-      case 2:
-        frame |= 0b01010UL;
-        break;
-      case 1:
-        frame |= 0b010UL;
-        break;
-      default:
-        break;
-    }
-
-    display_setFrame(frame);
   }
 }
+
+uint32_t doAnimation(uint8_t animationNumber, uint8_t *animationFrameNumber) {
+  return 0;
+}
+
+uint32_t doBargraph() {
+  uint32_t frame = 0;
+  uint8_t numLEDs;
+  numLEDs = map(persist_getNumMakersEncountered(), 0, persist_getNumMakers(), 0, 10);
+  switch(numLEDs) {
+    case 10:
+      frame |= 0b01010101010101010101UL;
+      break;
+    case 9:
+      frame |= 0b010101010101010101UL;
+      break;
+    case 8:
+      frame |= 0b0101010101010101UL;
+      break;
+    case 7:
+      frame |= 0b01010101010101UL;
+      break;
+    case 6:
+      frame |= 0b010101010101UL;
+      break;
+    case 5:
+      frame |= 0b0101010101UL;
+      break;
+    case 4:
+      frame |= 0b01010101UL;
+      break;
+    case 3:
+      frame |= 0b010101UL;
+      break;
+    case 2:
+      frame |= 0b0101UL;
+      break;
+    case 1:
+      frame |= 0b01UL;
+      break;
+    default:
+      break;
+  }
+
+  numLEDs = map(persist_getNumExhibitsEncountered(), 0, persist_getNumExhibits(), 0, 10);
+  switch(numLEDs) {
+    case 10:
+      frame |= 0b010101010101010101010UL;
+      break;
+    case 9:
+      frame |= 0b0101010101010101010UL;
+      break;
+    case 8:
+      frame |= 0b01010101010101010UL;
+      break;
+    case 7:
+      frame |= 0b010101010101010UL;
+      break;
+    case 6:
+      frame |= 0b0101010101010UL;
+      break;
+    case 5:
+      frame |= 0b01010101010UL;
+      break;
+    case 4:
+      frame |= 0b010101010UL;
+      break;
+    case 3:
+      frame |= 0b0101010UL;
+      break;
+    case 2:
+      frame |= 0b01010UL;
+      break;
+    case 1:
+      frame |= 0b010UL;
+      break;
+    default:
+      break;
+  }
+
+  return frame;
+}
+
