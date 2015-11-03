@@ -6,6 +6,7 @@
 #include "display.h"
 #include "infrared.h"
 #include "persistent_data.h"
+#include "animations.h"
 
 #define BOARD_TYPE 0x01
 #define VER_MAJOR 0x01
@@ -226,10 +227,6 @@ void loop() {
       }
     }
   }
-}
-
-uint32_t doAnimation(uint8_t animationNumber, uint8_t *animationFrameNumber) {
-  return 0;
 }
 
 uint32_t doBargraph() {
