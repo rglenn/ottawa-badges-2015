@@ -40,18 +40,12 @@ void setup() {
   // Set up persistent storage
   persist_init();
   
-  // We update the display every 500 microseconds.
-  // 20 updates are required to draw the entire display - only one LED is lit at a time.
-  // This ensures constant brightness no matter how many LEDs are on, and improves
-  // battery life - CR2032s don't like providing lots of current.
-  
-  // 500 microseconds times 20 LEDs = 10 milliseconds to draw the entire display
-  // This gives us a 100 Hz frame rate on the display, which is fast enough for humans
-  // not to notice.
-
 #ifdef DEBUG
   Serial.begin(9600);
 #endif
+
+  // Sending the Identify Response on bootup allows us to test the IR transmission easily.
+  infrared_sendIdentifyResponse(BOARD_TYPE, VER_MAJOR, VER_MINOR);
 }
 
 void loop() {
@@ -194,17 +188,29 @@ void loop() {
   if(currentMillis - beacon_prevMillis > BEACON_INTERVAL_MS) {
     DEBUG_PRINTLN("Beacon time!");
     beacon_prevMillis = currentMillis;
+
+    // If the MakerID hasn't been set, we don't send a beacon for it
     if(persist_getMakerID() != 0) {
       infrared_sendBeacon(persist_getMakerID(), ID_TYPE_MAKER);
       delay(20);
     }
-    
+
+    // If the ExhibitID hasn't been set, we don't send a beacon for it
     if(persist_getExhibitID() != 0) {
       infrared_sendBeacon(persist_getExhibitID(), ID_TYPE_EXHIBIT);
       delay(20);
     }
   }
 
+  // We update the display every 500 microseconds.
+  // 20 updates are required to draw the entire display - only one LED is lit at a time.
+  // This ensures constant brightness no matter how many LEDs are on, and improves
+  // battery life - CR2032s don't like providing lots of current.
+  
+  // 500 microseconds times 20 LEDs = 10 milliseconds to draw the entire display
+  // This gives us a 100 Hz frame rate on the display, which is fast enough for humans
+  // not to notice.
+  
   // Update display periodically
   if(currentMicros - display_prevMicros > DISPLAY_INTERVAL_US) {
     display_prevMicros = currentMicros;
@@ -233,6 +239,10 @@ uint32_t doBargraph() {
   uint32_t frame = 0;
   uint8_t numLEDs;
   numLEDs = map(persist_getNumMakersEncountered(), 0, persist_getNumMakers(), 0, 10);
+
+  // To allow easier testing of the LED array, we turn on all the LEDs if the number of makers hasn't been set yet
+  if(persist_getNumMakers() == 0) numLEDs = 10;
+  
   switch(numLEDs) {
     case 10:
       frame |= 0b01010101010101010101UL;
@@ -269,6 +279,10 @@ uint32_t doBargraph() {
   }
 
   numLEDs = map(persist_getNumExhibitsEncountered(), 0, persist_getNumExhibits(), 0, 10);
+
+  // To allow easier testing of the LED array, we turn on all the LEDs if the number of exhibits hasn't been set yet
+  if(persist_getNumExhibits() == 0) numLEDs = 10;
+  
   switch(numLEDs) {
     case 10:
       frame |= 0b010101010101010101010UL;
